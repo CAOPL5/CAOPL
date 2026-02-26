@@ -458,21 +458,44 @@ nav a:hover, nav a.active { color: var(--text); }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-storage.js";
+
 const _fbApp = initializeApp({ apiKey:"AIzaSyByuUfNXdO4GTIBTGQTt7eVrS4a5Il2y1c", authDomain:"noire-shop.firebaseapp.com", projectId:"noire-shop", storageBucket:"noire-shop.firebasestorage.app", messagingSenderId:"1020188513586", appId:"1:1020188513586:web:b7cc04b75c8c539cfaf32b" });
 const _db = getFirestore(_fbApp);
+const _storage = getStorage(_fbApp);
+
+// Загружаем base64-фото в Firebase Storage, возвращаем массив URL
+async function uploadPhotos(productId, base64Array) {
+  const urls = [];
+  for (const b64 of base64Array) {
+    if (!b64) continue;
+    // base64 → Blob
+    const res = await fetch(b64);
+    const blob = await res.blob();
+    const ext = blob.type === 'image/png' ? 'png' : 'jpg';
+    const path = `reviews/${productId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const storageRef = ref(_storage, path);
+    await uploadBytes(storageRef, blob);
+    const url = await getDownloadURL(storageRef);
+    urls.push(url);
+  }
+  return urls;
+}
 
 window._fbSaveReview = async function(productId, review) {
+  // Сначала загружаем фото в Storage, получаем постоянные URL
+  const photoUrls = await uploadPhotos(productId, review.photos || []);
+  // Затем сохраняем отзыв в Firestore с URL вместо base64
   await addDoc(collection(_db, 'reviews'), {
     productId,
     author:    review.author,
     stars:     review.stars,
     text:      review.text,
-    photos:    review.photos,
+    photos:    photoUrls,
     createdAt: serverTimestamp()
   });
 };
 
-// Без orderBy — сортировка на клиенте, не нужен индекс
 window._fbSubscribeReviews = function(productId, callback) {
   const q = query(collection(_db, 'reviews'), where('productId', '==', productId));
   return onSnapshot(q, { includeMetadataChanges: false }, snap => {
@@ -481,7 +504,7 @@ window._fbSubscribeReviews = function(productId, callback) {
       .sort((a, b) => {
         const ta = a.createdAt ? a.createdAt.seconds : 0;
         const tb = b.createdAt ? b.createdAt.seconds : 0;
-        return tb - ta; // новые сверху
+        return tb - ta;
       });
     callback(revs);
   });
@@ -1121,17 +1144,24 @@ function rmSubmit() {
     author, stars: _rmStars, text, date,
     photos: _rmPhotos.filter(Boolean)
   };
-  // Сохраняем в Firebase (async — не блокируем UI)
-  const btn = document.getElementById('rmErr'); // просто placeholder
+  // Показываем загрузку (фото грузятся в Storage)
+  const submitBtn = document.querySelector('.rm-btn-submit');
+  const hasPhotos = _rmPhotos.filter(Boolean).length > 0;
+  submitBtn.textContent = hasPhotos ? 'Загружаем фото…' : 'Публикуем…';
+  submitBtn.disabled = true;
+
   saveUserReview(_rmProductId, review)
     .then(() => {
+      submitBtn.textContent = 'Опубликовать';
+      submitBtn.disabled = false;
       closeReviewModal();
       showToast('Отзыв опубликован. Спасибо!');
-      // Firebase onSnapshot сам обновит список у всех посетителей
     })
     .catch(e => {
+      submitBtn.textContent = 'Опубликовать';
+      submitBtn.disabled = false;
       const err = document.getElementById('rmErr');
-      err.textContent = 'Ошибка сохранения. Проверьте интернет.';
+      err.textContent = 'Ошибка: ' + (e.message || 'проверьте интернет');
       err.classList.add('show');
       console.error(e);
     });
