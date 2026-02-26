@@ -455,7 +455,38 @@ nav a:hover, nav a.active { color: var(--text); }
 
 <div class="toast" id="toastEl"></div>
 
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+const _fbApp = initializeApp({ apiKey:"AIzaSyByuUfNXdO4GTIBTGQTt7eVrS4a5Il2y1c", authDomain:"noire-shop.firebaseapp.com", projectId:"noire-shop", storageBucket:"noire-shop.firebasestorage.app", messagingSenderId:"1020188513586", appId:"1:1020188513586:web:b7cc04b75c8c539cfaf32b" });
+const _db = getFirestore(_fbApp);
+
+// Экспортируем в window чтобы обычный скрипт мог использовать
+window._fbSaveReview = async function(productId, review) {
+  await addDoc(collection(_db, 'reviews'), {
+    productId,
+    author:    review.author,
+    stars:     review.stars,
+    text:      review.text,
+    photos:    review.photos,
+    createdAt: serverTimestamp()
+  });
+};
+
+window._fbSubscribeReviews = function(productId, callback) {
+  const q = query(
+    collection(_db, 'reviews'),
+    where('productId', '==', productId),
+    orderBy('createdAt', 'desc')
+  );
+  return onSnapshot(q, snap => {
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  });
+};
+</script>
+
 <script>
+let _unsubReviews = null;
 /* ╔════════════════════════════════════════════════════════════╗
    ║         ТОВАРЫ — ВСЁ РЕДАКТИРУЕТСЯ ТОЛЬКО ЗДЕСЬ           ║
    ╚════════════════════════════════════════════════════════════╝
@@ -485,7 +516,7 @@ const products = [
     photo1: 'images/N2.png',    // Главное фото
     photo2: 'images/N4.jpeg',    // Фото 2
     photo3: 'images/N5.png',   // Фото 3
-    photo4: 'images/N1.jpeg',    // Фото 4
+    photo4: 'images/N1.png',    // Фото 4
     gif:    'images/N3.gif',    // GIF-анимация
 
     colors: [
@@ -572,7 +603,7 @@ const products = [
     photo1: 'images/V1.png',
     photo2: 'images/V2.jpeg',
     photo3: 'images/V3.jpeg',
-    photo4: 'images/V4.jpeg',
+    photo4: 'images/V4.png',
     gif:    'images/V5.gif',
     colors: [ { name: 'Рыжий', hex: '#FF991C' } ],
     sizes: ['Any size'], outSizes: [],
@@ -608,7 +639,7 @@ const products = [
     photo1: 'images/P1.png',
     photo2: 'images/P2.jpeg',
     photo3: 'images/P3.jpeg',
-    photo4: 'images/P4.png',
+    photo4: 'images/P4.jpg',
     gif:    'images/P5.gif',
     colors: [ { name: 'multicolor', hex: '#FFFFFF' } ],
     sizes: ['Any size'], outSizes: [],
@@ -646,7 +677,7 @@ const products = [
     photo1: 'images/K1.png',
     photo2: 'images/K2.jpeg',
     photo3: 'images/K3.jpeg',
-    photo4: 'images/K4.jpeg',
+    photo4: 'images/K4.png',
     gif:    'images/K5.gif',
     colors: [ { name: 'Рыжий', hex: '#FF991C' } ],
     sizes: ['Any size'], outSizes: [],
@@ -871,11 +902,13 @@ function openProduct(id) {
         <div class="acc-head" onclick="toggleAcc(this)">Отзывы ${(p.reviews||[]).length ? `<span style="color:var(--gold);font-size:10px;margin-left:6px">${p.reviews.length}</span>` : ''} <span class="acc-icon">+</span></div>
         <div class="acc-body">
           ${renderReviews(p.reviews, p.id)}
-          <button class="btn-write-review" onclick="openReviewModal(${p.id})">✦ Оставить отзыв</button>
+          <button class="btn-write-review" data-pid="${p.id}" onclick="openReviewModal(${p.id})">✦ Оставить отзыв</button>
         </div>
       </div>
     </div>`;
   showPage('product');
+  // Подписываемся на Firebase — обновляет отзывы в реальном времени
+  subscribeReviews(p.id, p.reviews);
 }
 
 function setMainImg(src, isGif) {
@@ -889,40 +922,54 @@ function setMainImg(src, isGif) {
   }
 }
 
-function renderReviews(reviews, productId) {
-  // Статичные отзывы из данных + пользовательские из localStorage
-  const userRevs = getUserReviews(productId);
-  const all = [...(reviews||[]), ...userRevs];
-  if (!all.length) return '<div class="reviews-empty">Отзывов пока нет</div>';
-  return `<div class="reviews-list">${all.map((r, idx) => {
-    const filled = Math.max(0, Math.min(5, r.stars||5));
-    const stars = '★'.repeat(filled) + '☆'.repeat(5 - filled);
-    const isUser = idx >= (reviews||[]).length;
-    const photos = (r.photos||[]).slice(0,3).map(src => {
-      // src может быть data:URL (пользовательское) или путь
-      const safeOnclick = `openLightbox(this.src)`;
-      return `<img src="${src}" class="review-photo" onclick="${safeOnclick}" onerror="this.style.display='none'">`;
-    }).join('');
-    return `<div class="review-item">
-      <div class="review-header">
-        <span class="review-author">${r.author||''}${isUser ? '<span class="review-buyer-badge">Покупатель</span>' : ''}</span>
-        <span class="review-date">${r.date||''}</span>
-      </div>
-      <div class="review-stars">${stars}</div>
-      <div class="review-text">${r.text||''}</div>
-      ${photos ? `<div class="review-photos">${photos}</div>` : ''}
-    </div>`;
-  }).join('')}</div>`;
+/* ── РЕНДЕР ОДНОГО ОТЗЫВА ──────────────────────────────────── */
+function renderOneReview(r, isUser) {
+  const filled = Math.max(0, Math.min(5, r.stars||5));
+  const stars = '★'.repeat(filled) + '☆'.repeat(5 - filled);
+  // дата: если есть createdAt (Firestore Timestamp) — форматируем
+  let dateStr = r.date || '';
+  if (r.createdAt && r.createdAt.toDate) {
+    dateStr = r.createdAt.toDate().toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
+  }
+  const photos = (r.photos||[]).slice(0,3).map(src =>
+    `<img src="${src}" class="review-photo" onclick="openLightbox(this.src)" onerror="this.style.display='none'">`
+  ).join('');
+  return `<div class="review-item">
+    <div class="review-header">
+      <span class="review-author">${r.author||''}${isUser ? '<span class="review-buyer-badge">Покупатель</span>' : ''}</span>
+      <span class="review-date">${dateStr}</span>
+    </div>
+    <div class="review-stars">${stars}</div>
+    <div class="review-text">${r.text||''}</div>
+    ${photos ? `<div class="review-photos">${photos}</div>` : ''}
+  </div>`;
 }
 
-/* ── ПОЛЬЗОВАТЕЛЬСКИЕ ОТЗЫВЫ (localStorage) ──────────────── */
-function getUserReviews(productId) {
-  try { return JSON.parse(localStorage.getItem('noire_reviews_' + productId) || '[]'); } catch(e) { return []; }
+// Рендер статичных отзывов (пока Firebase ещё не загрузился)
+function renderReviews(staticReviews, productId) {
+  if (!staticReviews || !staticReviews.length) return '<div class="reviews-empty" id="reviewsEmpty_' + productId + '">Отзывов пока нет</div>';
+  return `<div class="reviews-list" id="reviewsList_${productId}">${staticReviews.map(r => renderOneReview(r, false)).join('')}</div>`;
 }
+
+/* ── FIREBASE: сохранение отзыва ──────────────────────────── */
 function saveUserReview(productId, review) {
-  const list = getUserReviews(productId);
-  list.unshift(review); // новые сверху
-  localStorage.setItem('noire_reviews_' + productId, JSON.stringify(list));
+  // _fbSaveReview определена в module-скрипте выше и доступна через window
+  return window._fbSaveReview(productId, review);
+}
+
+/* ── FIREBASE: подписка на отзывы в реальном времени ─────── */
+function subscribeReviews(productId, staticReviews) {
+  if (_unsubReviews) { _unsubReviews(); _unsubReviews = null; }
+  _unsubReviews = window._fbSubscribeReviews(productId, function(firebaseRevs) {
+    const all = [...(staticReviews||[]).map(r => renderOneReview(r, false)),
+                 ...firebaseRevs.map(r => renderOneReview(r, true))].join('');
+    const btn = document.querySelector(`.btn-write-review[data-pid="${productId}"]`);
+    if (!btn) return;
+    const body = btn.closest('.acc-body');
+    if (!body) return;
+    body.innerHTML = (all ? `<div class="reviews-list">${all}</div>` : '<div class="reviews-empty">Отзывов пока нет</div>') +
+      `<button class="btn-write-review" data-pid="${productId}" onclick="openReviewModal(${productId})">✦ Оставить отзыв</button>`;
+  });
 }
 
 /* ── МОДАЛКА ОТЗЫВА ──────────────────────────────────────── */
@@ -1040,24 +1087,20 @@ function rmSubmit() {
     author, stars: _rmStars, text, date,
     photos: _rmPhotos.filter(Boolean)
   };
-  saveUserReview(_rmProductId, review);
-  closeReviewModal();
-  showToast('Отзыв опубликован. Спасибо!');
-
-  // Перерисовываем секцию отзывов без перезагрузки страницы
-  const p = products.find(x => x.id === _rmProductId);
-  if (p) {
-    const accBody = document.querySelector('.acc-body.open, .acc-body');
-    // ищем нужный аккордеон по контексту — ищем тот, что содержит btn-write-review с нужным id
-    const btn = document.querySelector(`.btn-write-review[onclick="openReviewModal(${_rmProductId})"]`);
-    if (btn) {
-      const body = btn.closest('.acc-body');
-      if (body) {
-        body.innerHTML = renderReviews(p.reviews, _rmProductId) +
-          `<button class="btn-write-review" onclick="openReviewModal(${_rmProductId})">✦ Оставить отзыв</button>`;
-      }
-    }
-  }
+  // Сохраняем в Firebase (async — не блокируем UI)
+  const btn = document.getElementById('rmErr'); // просто placeholder
+  saveUserReview(_rmProductId, review)
+    .then(() => {
+      closeReviewModal();
+      showToast('Отзыв опубликован. Спасибо!');
+      // Firebase onSnapshot сам обновит список у всех посетителей
+    })
+    .catch(e => {
+      const err = document.getElementById('rmErr');
+      err.textContent = 'Ошибка сохранения. Проверьте интернет.';
+      err.classList.add('show');
+      console.error(e);
+    });
 }
 function openLightbox(src) {
   document.getElementById('lightboxImg').src = typeof src === 'string' ? src : src;
