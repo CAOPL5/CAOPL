@@ -29,6 +29,9 @@ header { position: fixed; top: 0; left: 0; right: 0; z-index: 200; display: flex
 nav { display: flex; gap: 36px; position: absolute; left: 50%; transform: translateX(-50%); }
 nav a { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); text-decoration: none; cursor: pointer; transition: color .25s; font-weight: 300; }
 nav a:hover, nav a.active { color: var(--text); }
+.nav-acc { position: absolute; right: 220px; display: flex; }
+.nav-acc a { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); text-decoration: none; cursor: pointer; transition: color .25s; font-weight: 400; border-bottom: 1px solid rgba(201,169,110,.4); padding-bottom: 2px; }
+.nav-acc a:hover { color: var(--gold2); border-color: var(--gold2); }
 .header-right { display: flex; align-items: center; gap: 28px; }
 .icon-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-family: 'Jost', sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; transition: color .2s; display: flex; align-items: center; gap: 8px; }
 .icon-btn:hover { color: var(--text); }
@@ -332,12 +335,12 @@ nav a:hover, nav a.active { color: var(--text); }
 <body>
 
 <header>
-  <div class="logo" onclick="showPage('catalog')">NOIRE</div>
+  <div class="logo" onclick="goBack()">NOIRE</div>
   <nav>
-    <a class="active" onclick="showPage('catalog')">Коллекция</a>
-    <a onclick="showPage('catalog')">Новинки</a>
-    <a onclick="showPage('catalog')">Женские</a>
-    <a onclick="showPage('catalog')">Аксессуары</a>
+    <a class="active" id="navKollekcia" onclick="openCatalogPage('collection',this)">Коллекция</a>
+    <a id="navNovinki" onclick="openCatalogPage('collection',this)">Новинки</a>
+    <a id="navZhenskie" onclick="openCatalogPage('collection',this)">Женские</a>
+    <a id="navAcc" onclick="openCatalogPage('accessories',this)">Аксессуары</a>
   </nav>
   <div class="header-right">
     <button class="icon-btn" onclick="showToast('Поиск недоступен')">Поиск</button>
@@ -361,8 +364,8 @@ nav a:hover, nav a.active { color: var(--text); }
       <button class="chip" onclick="setFilter('Повседневное',this)">Повседневное</button>
       <button class="chip" onclick="setFilter('Тусовочное',this)">Тусовочное</button>
       <button class="chip" onclick="setFilter('Рабочее',this)">Рабочее</button>
-      <button class="chip" onclick="setFilter('Обувь',this)">Обувь</button>
-      <button class="chip" onclick="setFilter('Аксессуары',this)">Аксессуары</button>
+      <button class="chip" onclick="setFilter('Домашнее',this)">Домашнее</button>
+
     </div>
     <select class="sort-select" onchange="sortCatalog(this.value)">
       <option value="default">Сортировка</option>
@@ -372,6 +375,35 @@ nav a:hover, nav a.active { color: var(--text); }
     </select>
   </div>
   <div class="catalog-grid" id="catalogGrid"></div>
+</div>
+
+<div class="page" id="accessoriesPage">
+  <div class="hero-banner" style="background: linear-gradient(135deg, #0e0e0e 0%, #0f0e0c 100%);">
+    <div class="hero-bg-text">Accessories</div>
+    <div>
+      <div class="hero-line"></div>
+      <div class="hero-tag">Осень / Зима 2025</div>
+      <h1 class="hero-title">Аксессуары<br><em>& стиль</em></h1>
+    </div>
+  </div>
+  <div class="toolbar">
+    <div class="filter-group" id="accFilterGroup">
+      <button class="chip active" onclick="setAccFilter('all',this)">Всё</button>
+      <button class="chip" onclick="setAccFilter('Одежда',this)">Одежда</button>
+      <button class="chip" onclick="setAccFilter('Обувь',this)">Обувь</button>
+      <button class="chip" onclick="setAccFilter('Трикотаж',this)">Трикотаж</button>
+      <button class="chip" onclick="setAccFilter('Аксессуары',this)">Аксессуары</button>
+    </div>
+    <select class="sort-select" onchange="sortAccCatalog(this.value)">
+      <option value="default">Сортировка</option>
+      <option value="priceLow">Цена: по возрастанию</option>
+      <option value="priceHigh">Цена: по убыванию</option>
+      <option value="rating">По рейтингу</option>
+    </select>
+  </div>
+  <div class="catalog-grid" id="accGrid">
+    <div style="padding:80px 48px;color:var(--muted);font-size:13px;letter-spacing:2px;text-transform:uppercase;grid-column:1/-1">Товары скоро появятся</div>
+  </div>
 </div>
 
 <div class="page" id="productPage">
@@ -547,8 +579,8 @@ const products = [
     gif:    'images/N3.gif',    // GIF-анимация
 
     colors: [
-      { name: 'Блонд',   hex: '#FFFD82' },
-      { name: 'Карамель', hex: '#372F1B' },
+      { name: 'Блонд',    hex: '#FFFD82', photos: ['images/N2.png', 'images/N4.jpeg', 'images/N5.png', 'images/N1.jpeg'], gif: 'images/N3.gif' }, // photos: [главное, фото2, фото3, фото4], gif: 360° анимация
+      { name: 'Карамель', hex: '#372F1B', photos: ['images/N2-1.png', 'images/N2-2.jpeg', 'images/N2-3.jpg', 'images/N2-4.jpeg'], gif: 'images/N2-5.gif'  },
     ],
     sizes: ['Any size'], outSizes: [],
     rating: 4.9, reviews: 1,
@@ -632,7 +664,7 @@ const products = [
     photo3: 'images/V3.jpeg',
     photo4: 'images/V4.jpeg',
     gif:    'images/V5.gif',
-    colors: [ { name: 'Рыжий', hex: '#FF991C' } ],
+    colors: [ { name: 'Рыжий', hex: '#FF991C', photos: ['images/V1.png', 'images/V2.jpeg', 'images/V3.jpeg', 'images/V4.jpeg'], gif: 'images/V5.gif' } ],
     sizes: ['Any size'], outSizes: [],
     rating: 4.8, reviews: 0,
     specs: [ ['Состав',   '100% силикон'],
@@ -668,7 +700,7 @@ const products = [
     photo3: 'images/P3.jpeg',
     photo4: 'images/P4.jpg',
     gif:    'images/P5.gif',
-    colors: [ { name: 'multicolor', hex: '#FFFFFF' } ],
+    colors: [ { name: 'multicolor', hex: '#FFFFFF', photos: ['images/P1.png', 'images/P2.jpeg', 'images/P3.jpeg', 'images/P4.jpg'], gif: 'images/P5.gif' } ],
     sizes: ['Any size'], outSizes: [],
     rating: 4.5, reviews: 0,
     specs: [ ['Состав',   '100% силикон'],
@@ -706,7 +738,7 @@ const products = [
     photo3: 'images/K3.jpeg',
     photo4: 'images/K4.jpeg',
     gif:    'images/K5.gif',
-    colors: [ { name: 'Шоколад', hex: '#221E19' } ],
+    colors: [ { name: 'Шоколад', hex: '#221E19', photos: ['images/K1.png', 'images/K2.jpeg', 'images/K3.jpeg', 'images/K4.jpeg'], gif: 'images/K5.gif' } ],
     sizes: ['Any size'], outSizes: [],
     rating: 4.5, reviews: 0,
     specs: [ ['Состав',   '80% силикон, 20% Латекс'],
@@ -763,7 +795,7 @@ const products = [
     photo3: 'images/AN3.jpeg',
     photo4: 'images/AN4.jpeg',
     gif:    'images/AN5.gif',
-    colors: [ { name: 'Темный шоколад', hex: '#190D00' } ],
+    colors: [ { name: 'Темный шоколад', hex: '#190D00', photos: ['images/AN1.png', 'images/AN2.jpeg', 'images/AN3.jpeg', 'images/AN4.jpeg'], gif: 'images/AN5.gif' } ],
     sizes: ['Any size'], outSizes: [],
     rating: 4.8, reviews: 0,
     specs: [ ['Состав',   '100% силикон'],
@@ -774,12 +806,30 @@ const products = [
       ['Карманы',  '2 на груди для паддингов, 1 внутренний для члена'],
       ['Уход',     'Химчистка, ручная стирка 30°C'],
       ['Страна',   'Россия'] ],
-    bundle: [ { icon: '🧥', name: 'Оболочка "Варвара"',        qty: '1 шт' },
+    bundle: [ { icon: '🧥', name: 'Оболочка "Анастейша"',        qty: '1 шт' },
       { icon: '🏷️', name: 'Фирменная вешалка',           qty: '1 шт' },
       { icon: '🛍️', name: 'Тканевый чехол для хранения', qty: '1 шт' },
       { icon: '📄', name: 'Сертификат качества, комплект документов на выбранное Вами имя',          qty: '1 шт' }, ],
-
+	
   },
+	{
+		id: 6,
+    name: 'Колготки капроновые', subtitle: 'Самое главное в любом гардеробе',
+    category: 'Трикотаж',
+    description: 'Капроновые колготки, 40 ден.',
+    price: '2 000', priceNum: 2000, priceOld: null,
+    badge: 'null', badgeText: 'Хит продаж',
+    photo1: 'images/PA1-1.jpeg',
+    photo2: 'images/PA1-2.jpeg',
+    photo3: 'images/PA1-3.jpeg',
+    photo4: 'images/PA1-4.jpeg',
+    gif:    'images/PA1-5.gif',
+    colors: [ { name: 'Чёрный', hex: '#111', photos: ['images/PA1-1.jpeg', 'images/PA1-2.jpeg', 'images/PA1-3.jpeg', 'images/PA1-4.jpeg'], gif: 'images/PA1-5.gif' } ],
+    sizes: ['S','M','L'], outSizes: [],
+    rating: 4.5, reviews: 0,
+    specs: [ ['Состав','100% хлопок'], ['Страна','Россия'] ],
+    bundle: [ { icon: '📦', name: 'Товар', qty: '1 шт' } ],
+	},
   /*
   ╔══════════════════════════════════════════════════════╗
   ║   ШАБЛОН ДЛЯ НОВОГО ТОВАРА — СКОПИРУЙ И ВСТАВЬ     ║
@@ -797,7 +847,7 @@ const products = [
     photo3: 'images/p7-3.jpg',
     photo4: 'images/p7-4.jpg',
     gif:    'images/p7-anim.gif',
-    colors: [ { name: 'Чёрный', hex: '#111' } ],
+    colors: [ { name: 'Чёрный', hex: '#111', photos: ['', '', '', ''], gif: '' } ],
     sizes: ['S','M','L'], outSizes: [],
     rating: 4.5, reviews: 0,
     specs: [ ['Состав','100% хлопок'], ['Страна','Россия'] ],
@@ -840,7 +890,7 @@ function renderCatalog() {
     const swatches = p.colors.map(c => `<div class="swatch" style="background:${c.hex}" title="${c.name}"></div>`).join('');
     const sizePreview = p.sizes.slice(0,4).map(s=>`<span class="size-dot">${s}</span>`).join('') + (p.sizes.length>4?`<span class="size-dot">+${p.sizes.length-4}</span>`:'');
     return `
-    <div class="prod-card" onclick="openProduct(${p.id})">
+    <div class="prod-card" onclick="openProductWithHistory(${p.id})">
       ${p.badge ? `<span class="card-badge badge-${p.badge}">${p.badgeText}</span>` : ''}
       <button class="card-wishlist ${getWishlist().includes(p.id)?'wactive':''}" onclick="event.stopPropagation();toggleWish(this,${p.id})">${getWishlist().includes(p.id)?'♥':'♡'}</button>
       <div class="card-media">
@@ -848,7 +898,7 @@ function renderCatalog() {
         <div class="card-sizes">${sizePreview}</div>
         <div class="card-cta">
           <button class="btn-cs" onclick="event.stopPropagation();addCart()">В корзину</button>
-          <button class="btn-vs" onclick="event.stopPropagation();openProduct(${p.id})">→</button>
+          <button class="btn-vs" onclick="event.stopPropagation();openProductWithHistory(${p.id})">→</button>
         </div>
       </div>
       <div class="card-body">
@@ -860,7 +910,7 @@ function renderCatalog() {
             <span class="card-price">${p.price} ₽</span>
             ${p.priceOld ? `<span class="card-price-old">${p.priceOld} ₽</span>` : ''}
           </div>
-          <div class="card-rating"><span class="star">★</span> ${p.rating} <span style="color:var(--muted2)">(${Array.isArray(p.reviews) ? p.reviews.length : (p.reviewCount||0)})</span></div>
+          <div class="card-rating"><span class="star">★</span> ${p.rating} <span id="cnt_${p.id}" style="color:var(--muted2)">(${Array.isArray(p.reviews) ? p.reviews.length : (p.reviewCount||0)})</span></div>
         </div>
         <div class="color-swatches">${swatches}</div>
       </div>
@@ -895,8 +945,8 @@ function openProduct(id) {
   const isClothing = !['Аксессуары','Обувь'].includes(p.category);
   document.getElementById('infoSide').innerHTML = `
     <div class="breadcrumb">
-      <span onclick="showPage('catalog')">Каталог</span><span class="sep">/</span>
-      <span onclick="showPage('catalog')">${p.category}</span><span class="sep">/</span>
+      <span onclick="goBack()">Каталог</span><span class="sep">/</span>
+      <span onclick="goBack()">${p.category}</span><span class="sep">/</span>
       <span>${p.name}</span>
     </div>
     <div class="p-tag">${p.category}</div>
@@ -905,7 +955,7 @@ function openProduct(id) {
     <div class="p-rating-row">
       <div class="p-stars">★★★★★</div>
       <div class="p-rating-num">${p.rating}</div>
-      <div class="p-reviews">${Array.isArray(p.reviews) ? p.reviews.length : (p.reviewCount||0)} отзывов</div>
+      <div class="p-reviews" id="pReviewCount_${p.id}">${Array.isArray(p.reviews) ? p.reviews.length : (p.reviewCount||0)} отзывов</div>
       ${p.badge ? `<span class="card-badge badge-${p.badge}" style="position:static;font-size:9px">${p.badgeText}</span>` : ''}
     </div>
     <div class="p-price-block">
@@ -918,7 +968,7 @@ function openProduct(id) {
     <div class="opt-group">
       <div class="opt-label"><span>Цвет — <span id="selClr">${p.colors[0].name}</span></span></div>
       <div class="color-grid">
-        ${p.colors.map((c,i) => `<div class="color-pick ${i===0?'sel':''}" onclick="pickColor(this)"><div class="color-circle" style="background:${c.hex}"></div><div class="color-name">${c.name}</div></div>`).join('')}
+        ${p.colors.map((c,i) => `<div class="color-pick ${i===0?'sel':''}" data-color-index="${i}" data-photos="${encodeURIComponent(JSON.stringify(c.photos||[]))}" data-gif="${encodeURIComponent(c.gif||'')}" onclick="pickColor(this)"><div class="color-circle" style="background:${c.hex}"></div><div class="color-name">${c.name}</div></div>`).join('')}
       </div>
     </div>
     <div class="opt-group">
@@ -933,7 +983,7 @@ function openProduct(id) {
     </div>
     <div class="disclaimer-note">
       <span class="disclaimer-icon">ℹ</span>
-      <span>Аксессуары и одежда, показанные на фото, <a class="disclaimer-link" onclick="showPage('catalog')">продаются отдельно</a> и не входят в комплект.</span>
+      <span>Аксессуары и одежда, показанные на фото, <a class="disclaimer-link" onclick="goBack()">продаются отдельно</a> и не входят в комплект.</span>
     </div>
     <div class="cta-group">
       <button class="btn-add" onclick="addCart()">Добавить в корзину</button>
@@ -957,7 +1007,7 @@ function openProduct(id) {
         <div class="acc-body"><div class="bundle-list">${p.bundle.map(b=>`<div class="bundle-row"><div class="bundle-icon-wrap">${b.icon}</div><div><div class="bundle-nm">${b.name}</div><div class="bundle-q">${b.qty}</div></div></div>`).join('')}</div></div>
       </div>
       <div class="acc-item">
-        <div class="acc-head" onclick="toggleAcc(this)">Отзывы ${(p.reviews||[]).length ? `<span style="color:var(--gold);font-size:10px;margin-left:6px">${p.reviews.length}</span>` : ''} <span class="acc-icon">+</span></div>
+        <div class="acc-head" onclick="toggleAcc(this)">Отзывы <span id="accReviewCount_${p.id}" style="color:var(--gold);font-size:10px;margin-left:6px">${(p.reviews||[]).length || ''}</span> <span class="acc-icon">+</span></div>
         <div class="acc-body">
           ${renderReviews(p.reviews, p.id)}
           <button class="btn-write-review" data-pid="${p.id}" onclick="openReviewModal(${p.id})">✦ Оставить отзыв</button>
@@ -994,7 +1044,7 @@ function renderOneReview(r, isUser) {
   ).join('');
   return `<div class="review-item">
     <div class="review-header">
-      <span class="review-author">${r.author||''}${isUser ? '<span class="review-buyer-badge">Покупатель</span>' : ''}</span>
+      <span class="review-author">${r.author||''}<span class="review-buyer-badge">Покупатель</span></span>
       <span class="review-date">${dateStr}</span>
     </div>
     <div class="review-stars">${stars}</div>
@@ -1021,12 +1071,21 @@ function subscribeReviews(productId, staticReviews) {
   _unsubReviews = window._fbSubscribeReviews(productId, function(firebaseRevs) {
     const all = [...(staticReviews||[]).map(r => renderOneReview(r, false)),
                  ...firebaseRevs.map(r => renderOneReview(r, true))].join('');
+    // Обновляем список отзывов
     const btn = document.querySelector(`.btn-write-review[data-pid="${productId}"]`);
-    if (!btn) return;
-    const body = btn.closest('.acc-body');
-    if (!body) return;
-    body.innerHTML = (all ? `<div class="reviews-list">${all}</div>` : '<div class="reviews-empty">Отзывов пока нет</div>') +
-      `<button class="btn-write-review" data-pid="${productId}" onclick="openReviewModal(${productId})">✦ Оставить отзыв</button>`;
+    if (btn) {
+      const body = btn.closest('.acc-body');
+      if (body) {
+        body.innerHTML = (all ? `<div class="reviews-list">${all}</div>` : '<div class="reviews-empty">Отзывов пока нет</div>') +
+          `<button class="btn-write-review" data-pid="${productId}" onclick="openReviewModal(${productId})">✦ Оставить отзыв</button>`;
+      }
+    }
+    // Обновляем счётчики на странице товара
+    const total = (staticReviews||[]).length + firebaseRevs.length;
+    const el2 = document.getElementById('pReviewCount_' + productId);
+    const el3 = document.getElementById('accReviewCount_' + productId);
+    if (el2) el2.textContent = total + ' отзывов';
+    if (el3) el3.textContent = total || '';
   });
 }
 
@@ -1188,6 +1247,46 @@ function pickColor(el) {
   el.classList.add('sel');
   const l = document.getElementById('selClr');
   if (l) l.textContent = el.querySelector('.color-name').textContent;
+
+  // Меняем фото галереи если для этого цвета заданы фото
+  const raw = el.dataset.photos;
+  if (!raw) return;
+  try {
+    const photos = JSON.parse(decodeURIComponent(raw)).filter(Boolean);
+    if (!photos.length) return; // фото не заданы — ничего не делаем
+
+    // Обновляем фото-миниатюры (photo1..photo4)
+    const thumbs = document.querySelectorAll('#thumbCol .thumb-item:not([data-gif="1"])');
+    thumbs.forEach((thumb, i) => {
+      const src = photos[i] || '';
+      const img = thumb.querySelector('img');
+      if (src) {
+        thumb.dataset.src = src;
+        if (img) { img.src = src; img.style.display = ''; }
+        else { thumb.innerHTML = `<img src="${src}" onerror="this.outerHTML='<div class=thumb-ph>📷</div>'">`; }
+      } else {
+        thumb.dataset.src = '';
+        if (img) img.style.display = 'none';
+      }
+    });
+
+    // Обновляем GIF-миниатюру если для цвета задан gif
+    const gifSrc = decodeURIComponent(el.dataset.gif || '');
+    const gifThumb = document.querySelector('#thumbCol .thumb-item[data-gif="1"]');
+    if (gifThumb && gifSrc) {
+      gifThumb.dataset.src = gifSrc;
+      const gifImg = gifThumb.querySelector('img');
+      if (gifImg) gifImg.src = gifSrc;
+      else gifThumb.innerHTML = `<img src="${gifSrc}" onerror="this.outerHTML='<div class=thumb-ph>▶</div>'"><span class="thumb-gif-label">360°</span>`;
+    }
+
+    // Ставим главное фото
+    setMainImg(photos[0], false);
+
+    // Активируем первую миниатюру
+    document.querySelectorAll('#thumbCol .thumb-item').forEach(t => t.classList.remove('active'));
+    if (thumbs[0]) thumbs[0].classList.add('active');
+  } catch(e) {}
 }
 function pickSize(btn) {
   btn.closest('.size-grid').querySelectorAll('.size-btn').forEach(b=>b.classList.remove('sel'));
@@ -1231,11 +1330,115 @@ renderCatalog(); }
 function sortCatalog(val) { currentSort = val; renderCatalog(); }
 function openSizeModal()  { document.getElementById('sizeModal').classList.add('show'); }
 function closeSizeModal() { document.getElementById('sizeModal').classList.remove('show'); }
-function showPage(name) {
+function showPage(name, pushHistory) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById(name==='catalog'?'catalogPage':'productPage').classList.add('active');
+  const pageMap = { catalog: 'catalogPage', accessories: 'accessoriesPage', product: 'productPage' };
+  document.getElementById(pageMap[name] || 'catalogPage').classList.add('active');
   window.scrollTo(0,0);
+  if (pushHistory !== false) {
+    if (name === 'catalog') history.pushState({ page:'catalog' }, '', '/');
+    if (name === 'accessories') history.pushState({ page:'accessories' }, '', '/accessories');
+  }
 }
+
+// Открытие раздела (коллекция или аксессуары) из навигации
+function openCatalogPage(section, el) {
+  if (_unsubReviews) { _unsubReviews(); _unsubReviews = null; }
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if (section === 'accessories') {
+    showPage('accessories');
+  } else {
+    currentFilter = 'all';
+    document.querySelectorAll('#catalogPage .chip').forEach(c => c.classList.remove('active'));
+    const first = document.querySelector('#catalogPage .chip');
+    if (first) first.classList.add('active');
+    renderCatalog();
+    showPage('catalog');
+  }
+}
+
+// Фильтр на странице Аксессуаров
+let accFilter = 'all';
+let accSort = 'default';
+// Товары аксессуаров — отдельный массив, пока пустой (добавишь позже)
+const accessoryProducts = [];
+
+function setAccFilter(cat, el) {
+  accFilter = cat;
+  document.querySelectorAll('#accFilterGroup .chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderAccCatalog();
+}
+
+function sortAccCatalog(val) {
+  accSort = val;
+  renderAccCatalog();
+}
+
+function renderAccCatalog() {
+  const grid = document.getElementById('accGrid');
+  if (!grid) return;
+  let list = accessoryProducts.filter(p => accFilter === 'all' || p.category === accFilter);
+  if (accSort === 'priceLow') list = [...list].sort((a,b) => a.price - b.price);
+  if (accSort === 'priceHigh') list = [...list].sort((a,b) => b.price - a.price);
+  if (accSort === 'rating') list = [...list].sort((a,b) => b.rating - a.rating);
+  if (!list.length) {
+    grid.innerHTML = '<div style="padding:80px 48px;color:var(--muted);font-size:13px;letter-spacing:2px;text-transform:uppercase;grid-column:1/-1">Товары скоро появятся</div>';
+    return;
+  }
+  grid.innerHTML = list.map(p => renderCard(p)).join('');
+}
+
+function setFilterNav(cat, el) {
+  currentFilter = cat;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  if (cat === 'all') {
+    const allChip = document.querySelector('.chip');
+    if (allChip) allChip.classList.add('active');
+  }
+  // Подсвечиваем активную nav-ссылку
+  document.querySelectorAll('nav a, .nav-acc a').forEach(a=>a.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderCatalog();
+}
+
+// Открытие товара с URL
+function openProductWithHistory(id) {
+  history.pushState({ page:'product', id }, '', '/product/' + id);
+  openProduct(id);
+}
+
+// Обработка кнопок браузера Назад/Вперёд
+window.addEventListener('popstate', e => {
+  if (!e.state || e.state.page === 'catalog') {
+    if (_unsubReviews) { _unsubReviews(); _unsubReviews = null; }
+    showPage('catalog', false);
+  } else if (e.state.page === 'accessories') {
+    if (_unsubReviews) { _unsubReviews(); _unsubReviews = null; }
+    showPage('accessories', false);
+  } else if (e.state.page === 'product') {
+    openProduct(e.state.id);
+  }
+});
+
+// При загрузке страницы — читаем URL
+(function initRoute() {
+  const path = window.location.pathname;
+  const m = path.match(/\/product\/(\d+)/);
+  if (m) {
+    const id = parseInt(m[1]);
+    history.replaceState({ page:'product', id }, '', path);
+    setTimeout(() => openProduct(id), 0);
+  } else if (path === '/accessories') {
+    history.replaceState({ page:'accessories' }, '', '/accessories');
+    document.getElementById('navAcc').classList.add('active');
+    document.getElementById('navKollekcia').classList.remove('active');
+    setTimeout(() => showPage('accessories', false), 0);
+  } else {
+    history.replaceState({ page:'catalog' }, '', '/');
+  }
+})();
 let _tt;
 function showToast(msg) {
   const el = document.getElementById('toastEl');
@@ -1243,7 +1446,40 @@ function showToast(msg) {
   clearTimeout(_tt); _tt = setTimeout(()=>el.classList.remove('show'), 2600);
 }
 
+function goBack() {
+  if (_unsubReviews) { _unsubReviews(); _unsubReviews = null; }
+  history.pushState({ page:'catalog' }, '', '/');
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  const first = document.querySelector('nav a');
+  if (first) first.classList.add('active');
+  showPage('catalog', false);
+}
+
 renderCatalog();
+
+// Подписываемся на счётчики отзывов для всех товаров сразу
+// чтобы карточки каталога обновлялись в реальном времени
+(function subscribeAllCounts() {
+  if (!window._fbSubscribeReviews) {
+    // Firebase ещё не загружен — ждём
+    setTimeout(subscribeAllCounts, 300);
+    return;
+  }
+  products.forEach(p => {
+    const staticCount = Array.isArray(p.reviews) ? p.reviews.length : (p.reviewCount || 0);
+    window._fbSubscribeReviews(p.id, function(firebaseRevs) {
+      const total = staticCount + firebaseRevs.length;
+      // Обновляем счётчик в карточке каталога
+      const el = document.getElementById('cnt_' + p.id);
+      if (el) el.textContent = '(' + total + ')';
+      // Обновляем счётчики на странице товара если он открыт
+      const el2 = document.getElementById('pReviewCount_' + p.id);
+      const el3 = document.getElementById('accReviewCount_' + p.id);
+      if (el2) el2.textContent = total + ' отзывов';
+      if (el3) el3.textContent = total || '';
+    });
+  });
+})();
 </script>
 </body>
 </html>
