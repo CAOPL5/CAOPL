@@ -458,40 +458,41 @@ nav a:hover, nav a.active { color: var(--text); }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-storage.js";
 
 const _fbApp = initializeApp({ apiKey:"AIzaSyByuUfNXdO4GTIBTGQTt7eVrS4a5Il2y1c", authDomain:"noire-shop.firebaseapp.com", projectId:"noire-shop", storageBucket:"noire-shop.firebasestorage.app", messagingSenderId:"1020188513586", appId:"1:1020188513586:web:b7cc04b75c8c539cfaf32b" });
 const _db = getFirestore(_fbApp);
-const _storage = getStorage(_fbApp);
 
-// Загружаем base64-фото в Firebase Storage, возвращаем массив URL
-async function uploadPhotos(productId, base64Array) {
-  const urls = [];
-  for (const b64 of base64Array) {
-    if (!b64) continue;
-    // base64 → Blob
-    const res = await fetch(b64);
-    const blob = await res.blob();
-    const ext = blob.type === 'image/png' ? 'png' : 'jpg';
-    const path = `reviews/${productId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const storageRef = ref(_storage, path);
-    await uploadBytes(storageRef, blob);
-    const url = await getDownloadURL(storageRef);
-    urls.push(url);
-  }
-  return urls;
+// Сжимаем фото через canvas до ~150KB — влезает в Firestore без Storage
+function compressPhoto(base64, maxW, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = base64;
+  });
 }
 
 window._fbSaveReview = async function(productId, review) {
-  // Сначала загружаем фото в Storage, получаем постоянные URL
-  const photoUrls = await uploadPhotos(productId, review.photos || []);
-  // Затем сохраняем отзыв в Firestore с URL вместо base64
+  // Сжимаем каждое фото до макс. 800px и качества 0.5 (~100-150KB)
+  const photos = [];
+  for (const b64 of (review.photos || [])) {
+    if (!b64) continue;
+    const compressed = await compressPhoto(b64, 800, 0.5);
+    photos.push(compressed);
+  }
   await addDoc(collection(_db, 'reviews'), {
     productId,
     author:    review.author,
     stars:     review.stars,
     text:      review.text,
-    photos:    photoUrls,
+    photos,
     createdAt: serverTimestamp()
   });
 };
